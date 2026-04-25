@@ -1,6 +1,9 @@
 import re
 from typing import Dict, Any
-from .models import Transcript, Statement
+try:
+    from .models import Transcript, Statement
+except ImportError:
+    from models import Transcript, Statement
 
 class RewardModel:
     def __init__(self):
