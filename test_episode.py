@@ -112,7 +112,7 @@ def main():
             ))
         total_rewards["prosecutor"] += result.reward
         step_num += 1
-        print(f"  Step {step_num} | Round {rnd} Prosecutor | reward={result.reward:.3f} | rubric={result.observation.reward_breakdown.weighted_total:.3f}" if result.observation.reward_breakdown else f"  Step {step_num} | Round {rnd} Prosecutor | reward={result.reward:.3f}")
+        print(f"  Step {step_num} | Round {rnd} Prosecutor | reward={result.reward:.3f} | rubric={result.reward_breakdown.weighted_total:.3f}" if result.reward_breakdown else f"  Step {step_num} | Round {rnd} Prosecutor | reward={result.reward:.3f}")
 
         if result.done:
             break
@@ -141,7 +141,7 @@ def main():
             ))
         total_rewards["defense"] += result.reward
         step_num += 1
-        print(f"  Step {step_num} | Round {rnd} Defense | reward={result.reward:.3f} | rubric={result.observation.reward_breakdown.weighted_total:.3f}" if result.observation.reward_breakdown else f"  Step {step_num} | Round {rnd} Defense | reward={result.reward:.3f}")
+        print(f"  Step {step_num} | Round {rnd} Defense | reward={result.reward:.3f} | rubric={result.reward_breakdown.weighted_total:.3f}" if result.reward_breakdown else f"  Step {step_num} | Round {rnd} Defense | reward={result.reward:.3f}")
 
         if result.done:
             break

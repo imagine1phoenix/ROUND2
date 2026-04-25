@@ -261,8 +261,8 @@ def run_simulation(selection, user_role, user_argument):
         step += 1
         phase_name = env.state.phase.value.replace("_", " ").title()
         lines.append(f"### Step {step} · {phase_name}\n**{label}** · Action: `{action.action_type.value}`\n\n> {action.argument[:300]}\n\n**Reward:** `{result.reward:.3f}`\n")
-        if result.observation.reward_breakdown:
-            rb = result.observation.reward_breakdown
+        if result.reward_breakdown:
+            rb = result.reward_breakdown
             scores.append(f"| {step} | {role.value.title()} | {rb.coherence:.2f} | {rb.evidence_usage:.2f} | {rb.counter_quality:.2f} | {rb.consistency:.2f} | **{rb.weighted_total:.3f}** |")
 
     s = env.state
