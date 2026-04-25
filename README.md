@@ -1,3 +1,23 @@
+---
+title: "Verdict ⚖️ Courtroom AI"
+emoji: ⚖️
+colorFrom: indigo
+colorTo: purple
+sdk: gradio
+sdk_version: "5.33.0"
+app_file: app.py
+pinned: true
+license: mit
+tags:
+  - multi-agent
+  - reinforcement-learning
+  - legal-reasoning
+  - openenv
+  - pytorch
+  - hackathon
+short_description: "Multi-Agent Courtroom RL — argue cases against AI, scored by composable rubric"
+---
+
 # ⚖️ Verdict: Training LLMs to Reason, Argue, and Judge like a Lawyer
 **Meta x HuggingFace x OpenEnv x PyTorch Hackathon, Bangalore 2026**
 

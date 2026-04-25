@@ -1,166 +1,98 @@
-import gradio as gr
+"""
+Verdict — Gradio App (HuggingFace Spaces Entry Point)
+=======================================================
+Wired into the real VerdictEnvironment. Runs live courtroom episodes
+with composable rubric scoring. Built for Hugging Face Spaces deployment.
+"""
+
+import sys
+import os
 import random
+import json
 from textwrap import dedent
 
-CASES = [
-    {
-        "title": "Contract Dispute: Missing Deliverable",
-        "summary": "A startup alleges that a consulting firm failed to deliver a promised delivery timeline, while the firm claims the client changed scope mid-project.",
-        "evidence": [
-            "Email thread confirming the scope was fixed on March 8.",
-            "Internal note indicating an extra feature request after the first draft.",
-            "Invoice showing payment for milestone 1 but not milestone 2."
-        ],
-        "theme": "Breach of contract, scope creep, and evidence timing."
-    },
-    {
-        "title": "Wrongful Termination: Performance vs. Policy",
-        "summary": "An employee alleges wrongful termination after raising ethical concerns, while the employer cites repeated policy violations.",
-        "evidence": [
-            "Performance reviews labeling the employee as ""a strong team player.""",
-            "A confidential whistleblower report filed anonymously two months before termination.",
-            "A written policy memo distributed company-wide on acceptable conduct."
-        ],
-        "theme": "Competing narratives between employee credibility and employer compliance."
-    },
-    {
-        "title": "Ethical Breach: Confidentiality Leak",
-        "summary": "A product manager is accused of sharing proprietary design details with a competitor, while they claim the information was already public.",
-        "evidence": [
-            "A timestamped message with the leaked file attached.",
-            "A press release announcing a related product line one week earlier.",
-            "A non-disclosure agreement signed at project start."
-        ],
-        "theme": "Balance between public domain facts and protected company secrets."
-    }
-]
+# Wire imports to server modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "server"))
 
-SIMULATION_TEMPLATES = {
-    "Prosecutor": [
-        "The strongest path is to frame the case around the defendant's duty and the clear evidence timeline.",
-        "Emphasize the burden of proof and how the opposing story contradicts the documented facts.",
-        "Highlight the simplest narrative: evidence shows the contract terms were not honored."
-    ],
-    "Defense": [
-        "Shift attention to the opponent's weak assumptions and any gaps in the evidence chain.",
-        "Stress reasonable doubt and the fact that the disputed evidence can support multiple interpretations.",
-        "Argue that the plaintiff's story ignores key mitigating context from the agreement."
-    ],
-    "Judge": [
-        "A reasoned verdict must weigh the credibility of opposing claims and the strength of evidence.",
-        "Focus on whether the legal standard of proof is met by the available facts.",
-        "The final judgment should reward fairness over rhetorical flourish."
-    ]
-}
+import gradio as gr
 
-RUBRIC_TEXT = dedent(
-    """
-    ### Judge Rubric
-
-    - **Argument Coherence (30%)** — logical flow, no self-contradictions, and clear connections between claim and support.
-    - **Evidence Usage (20%)** — proper citation of facts; avoid evidence dumping.
-    - **Counter Quality (20%)** — directly address the opponent's strongest point rather than deflecting.
-    - **Consistency (15%)** — maintain a stable position across the trial.
-    - **Verdict Alignment (15%)** — final reasoning must align with the legal standard and evidence record.
-
-    > This demo is designed to highlight how a courtroom AI must think like a lawyer: structured, adversarial, and persuasive.
-    """
+from models import (
+    ActionType, AgentRole, TrialPhase,
+    VerdictAction, VerdictObservation, RubricScore,
 )
+from verdict_environment import VerdictEnvironment, load_cases
 
-LIGHT_DARK_CSS = """
-body.theme-light {
-    background: #eef2ff !important;
-    color: #0f172a !important;
-}
-body.theme-dark {
-    background: #020617 !important;
-    color: #e2e8f0 !important;
-}
+# ---------------------------------------------------------------------------
+#  Load real cases from cases.json
+# ---------------------------------------------------------------------------
 
-.gradio-container {
-    background: transparent !important;
-}
+ALL_CASES = load_cases()
+EASY_CASES = load_cases(difficulty="easy")
+MEDIUM_CASES = load_cases(difficulty="medium")
+HARD_CASES = load_cases(difficulty="hard")
 
-.hero-card,
-.card,
-.gr-button,
-.gradio-container .panel {
-    border-radius: 24px !important;
-}
+# Global env instance for the demo
+ENV = VerdictEnvironment(max_rounds=2)
+
+RUBRIC_TEXT = dedent("""\
+### ⚖️ Judge Rubric (Composable, Dense Signal)
+
+| Component | Weight | What It Measures |
+|-----------|--------|------------------|
+| **Argument Coherence** | 30% | Logical flow, structured sentences, case-fact grounding |
+| **Evidence Usage** | 20% | Strategic citation of evidence; penalizes evidence dumping |
+| **Counter Quality** | 20% | Directly addresses opponent's strongest point |
+| **Consistency** | 15% | No self-contradiction or repetition across turns |
+| **Verdict Alignment** | 15% | Terminal bonus — did the judge rule in your favor? |
+
+> Anti-gaming: verbose but hollow arguments → low coherence.
+> Repeating the same point → consistency penalty.
+> Evidence dump without narrative → near-zero evidence score.
+""")
+
+# ---------------------------------------------------------------------------
+#  CSS
+# ---------------------------------------------------------------------------
+
+APP_CSS = """
+body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
 
 .hero-card {
-    background: rgba(15, 23, 42, 0.92);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    padding: 30px;
+    background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.92));
+    border: 1px solid rgba(148,163,184,0.18);
+    border-radius: 24px;
+    padding: 32px;
     margin-bottom: 24px;
-    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
-}
-
-body.theme-light .hero-card {
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    box-shadow: 0 18px 68px rgba(15, 23, 42, 0.08);
-}
-
-.card {
-    background: rgba(8, 16, 36, 0.96);
-    border: 1px solid rgba(148, 163, 184, 0.14);
+    box-shadow: 0 24px 80px rgba(15,23,42,0.18);
     color: #f8fafc;
-    padding: 22px;
 }
 
-body.theme-light .card {
-    background: rgba(255, 255, 255, 0.96);
-    border-color: rgba(148, 163, 184, 0.16);
-    color: #111827;
+.hero-card h1 {
+    font-size: 2.4rem;
+    margin: 0 0 8px 0;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-.menu-card {
-    background: rgba(15, 23, 42, 0.92);
+.transcript-box {
+    background: rgba(15,23,42,0.85);
+    border: 1px solid rgba(100,116,139,0.2);
+    border-radius: 16px;
     padding: 20px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
+    color: #e2e8f0;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.88rem;
+    max-height: 500px;
+    overflow-y: auto;
 }
 
-body.theme-light .menu-card {
-    background: rgba(255, 255, 255, 0.96);
-}
-
-.theme-button {
-    margin-right: 8px;
-    border-radius: 999px;
-    padding: 10px 20px;
-    border: none;
-    cursor: pointer;
-    font-weight: 700;
-}
-
-.theme-button.light {
-    background: #f8fafc;
-    color: #0f172a;
-}
-
-.theme-button.dark {
-    background: #0f172a;
-    color: #f8fafc;
-}
-
-.menu-label {
-    font-size: 0.95rem;
-    margin-bottom: 10px;
-    display: block;
-    font-weight: 700;
-}
-
-.gradio-textbox textarea,
-.gradio-textarea textarea {
-    background: rgba(15, 23, 42, 0.9) !important;
-    color: #e2e8f0 !important;
-}
-
-body.theme-light .gradio-textbox textarea,
-body.theme-light .gradio-textarea textarea {
-    background: rgba(248, 250, 252, 0.98) !important;
-    color: #0f172a !important;
+.score-card {
+    background: rgba(15,23,42,0.9);
+    border: 1px solid rgba(100,116,139,0.2);
+    border-radius: 16px;
+    padding: 18px;
+    color: #e2e8f0;
 }
 
 .gr-button {
@@ -169,182 +101,264 @@ body.theme-light .gradio-textarea textarea {
 }
 """
 
-GRADIO_JS = """
-<script>
-function setAppTheme(theme) {
-    document.body.classList.remove('theme-light', 'theme-dark');
-    document.body.classList.add('theme-' + theme);
-}
-window.addEventListener('DOMContentLoaded', function() {
-    setAppTheme('dark');
-});
-</script>
-"""
+# ---------------------------------------------------------------------------
+#  Core Demo Logic — runs real episodes
+# ---------------------------------------------------------------------------
 
-MENU_CONTENT = {
-    "Overview": dedent(
-        """
-        ## Verdict: Courtroom AI Demo
-
-        This frontend is built for Hugging Face Spaces and showcases a polished, modern interface for the `Verdict` multi-agent legal reasoning environment.
-
-        Use the menu to explore case scenarios, simulate prosecutor or defense arguments, and compare judgment criteria in a clean, polished UI.
-        """
-    ),
-    "Case Browser": "",
-    "Argument Lab": "",
-    "Judge Rubric": RUBRIC_TEXT,
-}
+def format_case_list():
+    """Build dropdown choices from real cases."""
+    choices = []
+    for c in ALL_CASES:
+        tier = c.get("difficulty", "medium").upper()
+        choices.append(f"[{tier}] {c['case_id']}: {c['charge']}")
+    return choices
 
 
-def format_case(index: int) -> str:
-    case = CASES[index]
-    details = [f"- {item}" for item in case["evidence"]]
-    return dedent(
-        f"""
-        ### {case['title']}
+def get_case_details(selection: str) -> str:
+    """Show full case brief + evidence for the selected case."""
+    if not selection:
+        return "Select a case to view details."
+    case_id = selection.split(":")[0].split("]")[-1].strip()
+    case = next((c for c in ALL_CASES if c["case_id"] == case_id), None)
+    if not case:
+        return "Case not found."
 
-        **Summary:** {case['summary']}
+    p_ev = "\n".join(f"  - **[{e.evidence_id}]** {e.title}: {e.description}" for e in case["prosecutor_evidence"])
+    d_ev = "\n".join(f"  - **[{e.evidence_id}]** {e.title}: {e.description}" for e in case["defense_evidence"])
 
-        **Theme:** {case['theme']}
+    return dedent(f"""\
+### {case.get('title', case['case_id'])}
+**Category:** {case.get('category', 'N/A')} · **Difficulty:** {case.get('difficulty', 'medium').upper()}
 
-        **Evidence Highlights:**
-        {chr(10).join(details)}
-        """
-    )
+**Facts:**
+{case['case_brief']}
+
+**🔴 Prosecutor Evidence (hidden from defense):**
+{p_ev}
+
+**🔵 Defense Evidence (hidden from prosecutor):**
+{d_ev}
+""")
 
 
-def render_panel(section: str) -> str:
-    if section == "Case Browser":
-        case_list = "\n".join([f"- **{i+1}. {case['title']}**" for i, case in enumerate(CASES)])
-        return dedent(
-            f"""
-            ## Case Browser
+def run_simulation(selection: str, user_role: str, user_argument: str) -> tuple[str, str]:
+    """Run a full episode. The user plays one side, rule-based agent plays the other."""
+    if not selection or not user_argument.strip():
+        return "⚠️ Select a case and enter your argument.", ""
 
-            Select a case from the menu to review the current evidence and scenario.
+    case_id = selection.split(":")[0].split("]")[-1].strip()
+    case = next((c for c in ALL_CASES if c["case_id"] == case_id), None)
+    if not case:
+        return "Case not found.", ""
 
-            **Available scenarios:**
-            {case_list}
-            """
+    # Create a fresh env with this specific case
+    env = VerdictEnvironment(max_rounds=2)
+    obs = env.reset()
+    # Override with selected case
+    s = env.state
+    s.case_id = case["case_id"]
+    s.case_brief = case["case_brief"]
+    s.charge = case["charge"]
+    s.prosecutor_evidence = [e.model_copy() for e in case["prosecutor_evidence"]]
+    s.defense_evidence = [e.model_copy() for e in case["defense_evidence"]]
+
+    transcript_lines = []
+    scores_lines = []
+    user_is_prosecutor = user_role == "Prosecutor"
+    step = 0
+
+    def bot_action(phase: TrialPhase) -> VerdictAction:
+        """Simple rule-based opponent."""
+        phase_map = {
+            TrialPhase.PLEA_BARGAIN: ActionType.ARGUE,
+            TrialPhase.OPENING_STATEMENTS: ActionType.ARGUE,
+            TrialPhase.ARGUMENT_ROUNDS: ActionType.ARGUE,
+            TrialPhase.CLOSING_STATEMENTS: ActionType.CLOSE,
+        }
+        at = phase_map.get(phase, ActionType.ARGUE)
+        return VerdictAction(
+            thinking="I must present a strong counter-argument addressing the key facts.",
+            action_type=at,
+            argument=(
+                "The evidence presented does not support the claims made. "
+                "However, upon examining the documented facts, a different conclusion emerges. "
+                "Furthermore, the timeline of events contradicts the opposing narrative. "
+                "Therefore, the court should consider these facts carefully before ruling."
+            ),
         )
-    elif section == "Argument Lab":
-        return dedent(
-            """
-            ## Argument Lab
 
-            Compose a prompt and choose a role to see a polished courtroom-style response. The simulator helps visualize how each side builds persuasive reasoning.
-
-            - Use the `Prosecutor` role to focus on evidence and legal burden.
-            - Use the `Defense` role to stress doubt, alternative explanations, and policy context.
-            - Use the `Judge` role to produce a reasoned verdict summary.
-            """
+    def user_action(phase: TrialPhase) -> VerdictAction:
+        phase_map = {
+            TrialPhase.PLEA_BARGAIN: ActionType.ARGUE,
+            TrialPhase.OPENING_STATEMENTS: ActionType.ARGUE,
+            TrialPhase.ARGUMENT_ROUNDS: ActionType.ARGUE,
+            TrialPhase.CLOSING_STATEMENTS: ActionType.CLOSE,
+        }
+        at = phase_map.get(phase, ActionType.ARGUE)
+        return VerdictAction(
+            thinking="Strategic reasoning based on the available evidence.",
+            action_type=at,
+            argument=user_argument,
         )
-    return MENU_CONTENT.get(section, MENU_CONTENT["Overview"])
+
+    # Run the episode
+    while not env.state.is_done and step < 20:
+        role = env.state.current_speaker
+        is_user_turn = (role == AgentRole.PROSECUTOR) == user_is_prosecutor
+
+        if is_user_turn:
+            action = user_action(env.state.phase)
+            label = f"🧑 YOU ({role.value.upper()})"
+        else:
+            action = bot_action(env.state.phase)
+            label = f"🤖 BOT ({role.value.upper()})"
+
+        result = env.step(action)
+        step += 1
+
+        transcript_lines.append(
+            f"**Step {step} · {env.state.phase.value} · {label}**\n"
+            f"Action: `{action.action_type.value}`\n"
+            f"> {action.argument[:300]}\n"
+            f"Reward: `{result.reward:.3f}`\n"
+        )
+
+        if result.observation.reward_breakdown:
+            rb = result.observation.reward_breakdown
+            scores_lines.append(
+                f"Step {step} ({role.value}): "
+                f"coh={rb.coherence:.2f} ev={rb.evidence_usage:.2f} "
+                f"ctr={rb.counter_quality:.2f} con={rb.consistency:.2f} "
+                f"→ **{rb.weighted_total:.3f}**"
+            )
+
+    # Final verdict
+    s = env.state
+    verdict_text = s.verdict or "No verdict reached."
+    winner = s.winner.value.upper() if s.winner else "DRAW"
+
+    p_avg = (sum(r.weighted_total for r in s.prosecutor_scores) / len(s.prosecutor_scores)) if s.prosecutor_scores else 0
+    d_avg = (sum(r.weighted_total for r in s.defense_scores) / len(s.defense_scores)) if s.defense_scores else 0
+
+    transcript = "\n---\n".join(transcript_lines)
+    transcript += f"\n\n---\n## ⚖️ VERDICT\n**{verdict_text}**\n\n**Winner:** {winner}\n"
+    transcript += f"**Prosecution avg:** {p_avg:.3f} · **Defense avg:** {d_avg:.3f}\n"
+    transcript += f"**Steps:** {s.step_count} · **Transcript entries:** {len(s.transcript)}"
+
+    rubric_detail = "\n".join(scores_lines) if scores_lines else "No scores recorded."
+
+    return transcript, rubric_detail
 
 
-def update_menu(selection: str) -> str:
-    return render_panel(selection)
-
-
-def update_case_details(case_value: str) -> str:
-    try:
-        case_id = int(case_value.split(":", 1)[0]) - 1
-    except Exception:
-        return "Select a valid case to preview its facts and evidence."
-    if 0 <= case_id < len(CASES):
-        return format_case(case_id)
-    return "Select a valid case to preview its facts and evidence."
-
-
-def style_response(response: str) -> str:
-    return f"### Simulated Response\n\n{response}"
-
-
-def simulate_argument(prompt: str, role: str, case_value: str) -> str:
-    if not prompt.strip():
-        return "Please enter a clear issue or question to begin the simulation."
-    try:
-        case_id = int(case_value.split(":", 1)[0]) - 1
-    except Exception:
-        case_id = 0
-    case = CASES[case_id if 0 <= case_id < len(CASES) else 0]
-    template = random.choice(SIMULATION_TEMPLATES.get(role, SIMULATION_TEMPLATES["Prosecutor"]))
-    return dedent(
-        f"""
-        **Role:** {role}
-
-        **Scenario:** {case['title']}
-
-        {template}
-
-        **Prompt:** {prompt.strip()}
-
-        **Sample reasoning:**
-        - Reference the key evidence clearly.
-        - Build each argument point in a structured sequence.
-        - Maintain credibility by avoiding unsupported claims.
-        """
-    )
-
+# ---------------------------------------------------------------------------
+#  Gradio UI
+# ---------------------------------------------------------------------------
 
 def build_interface() -> gr.Blocks:
-    with gr.Blocks(css=LIGHT_DARK_CSS, title="Verdict: Courtroom Reasoning Demo") as demo:
-        gr.HTML(f"""
+    with gr.Blocks(css=APP_CSS, title="Verdict ⚖️ Courtroom AI") as demo:
+        # Hero
+        gr.HTML("""
         <div class='hero-card'>
-            <h1>Verdict</h1>
-            <p style='font-size:1.05rem; opacity:0.85; max-width:720px;'>
-                A polished Hugging Face-ready courtroom interface for exploring adversarial legal reasoning, case scenarios, and judgment criteria.
+            <h1>⚖️ Verdict</h1>
+            <p style='font-size:1.1rem; opacity:0.85; max-width:720px; margin:0;'>
+                Multi-Agent Courtroom RL Environment — argue a case against an AI opponent,
+                scored by a composable rubric. Built on OpenEnv for the Meta × HuggingFace Hackathon.
             </p>
-            <div style='margin-top:22px;'>
-                <button class='theme-button light' onclick="setAppTheme('light')">Light Mode</button>
-                <button class='theme-button dark' onclick="setAppTheme('dark')">Dark Mode</button>
-            </div>
         </div>
-        {GRADIO_JS}
         """)
 
-        with gr.Row():
-            with gr.Column(scale=1, min_width=240):
-                gr.Markdown("### Menu")
-                menu = gr.Radio(
-                    label="Navigation",
-                    choices=["Overview", "Case Browser", "Argument Lab", "Judge Rubric"],
-                    value="Overview",
-                    interactive=True,
-                )
-                case_selector = gr.Dropdown(
-                    label="Choose a case",
-                    choices=[f"{i+1}: {case['title']}" for i, case in enumerate(CASES)],
-                    value="1: " + CASES[0]["title"],
-                )
-                gr.Markdown("---")
-                gr.Markdown("### Quick Tips")
-                gr.Markdown(
-                    "- Put all action items inside the menu.\n- Use the case browser for evidence-driven storytelling.\n- Leverage the argument lab to compare roles."
-                )
-            with gr.Column(scale=2, min_width=360):
-                content = gr.Markdown(render_panel("Overview"), elem_id="main-content")
-                case_details = gr.Markdown(format_case(0), elem_id="case-details")
-                with gr.Accordion("Argument Simulator", open=True):
-                    prompt_input = gr.Textbox(
-                        label="Describe the issue or point to argue",
-                        placeholder="For example: 'Explain why the evidence proves breach of contract.'",
-                        lines=3,
-                    )
-                    role_choice = gr.Radio(
-                        label="Choose role",
-                        choices=["Prosecutor", "Defense", "Judge"],
-                        value="Prosecutor",
-                        interactive=True,
-                    )
-                    simulate_btn = gr.Button("Simulate Response")
-                    simulation_output = gr.Markdown("_Submit a prompt to see a polished simulated argument._")
+        with gr.Tabs():
+            # --- Tab 1: Play a Case ---
+            with gr.Tab("🎮 Play a Case"):
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        case_dropdown = gr.Dropdown(
+                            label="Select Case",
+                            choices=format_case_list(),
+                            value=format_case_list()[0] if ALL_CASES else None,
+                        )
+                        case_details = gr.Markdown(
+                            get_case_details(format_case_list()[0]) if ALL_CASES else "",
+                            elem_classes=["score-card"],
+                        )
 
-        menu.change(update_menu, menu, content)
-        case_selector.change(update_case_details, case_selector, case_details)
-        simulate_btn.click(simulate_argument, inputs=[prompt_input, role_choice, case_selector], outputs=simulation_output)
+                    with gr.Column(scale=2):
+                        role_choice = gr.Radio(
+                            label="Your Role",
+                            choices=["Prosecutor", "Defense"],
+                            value="Prosecutor",
+                        )
+                        user_input = gr.Textbox(
+                            label="Your Argument",
+                            placeholder="Write your courtroom argument here. Reference evidence by title for bonus points...",
+                            lines=5,
+                        )
+                        run_btn = gr.Button("⚖️ Run Trial", variant="primary", size="lg")
+
+                        transcript_output = gr.Markdown(
+                            "_Select a case, choose your role, write your argument, and click 'Run Trial'._",
+                            elem_classes=["transcript-box"],
+                        )
+                        rubric_output = gr.Markdown("", elem_classes=["score-card"])
+
+                case_dropdown.change(get_case_details, case_dropdown, case_details)
+                run_btn.click(
+                    run_simulation,
+                    inputs=[case_dropdown, role_choice, user_input],
+                    outputs=[transcript_output, rubric_output],
+                )
+
+            # --- Tab 2: Case Browser ---
+            with gr.Tab("📋 Case Browser"):
+                gr.Markdown(f"## 30 Cases · 3 Difficulty Tiers\n\n"
+                            f"**Easy:** {len(EASY_CASES)} · **Medium:** {len(MEDIUM_CASES)} · **Hard:** {len(HARD_CASES)}")
+                browser_dropdown = gr.Dropdown(
+                    label="Browse Cases",
+                    choices=format_case_list(),
+                    value=format_case_list()[0] if ALL_CASES else None,
+                )
+                browser_details = gr.Markdown(
+                    get_case_details(format_case_list()[0]) if ALL_CASES else "",
+                )
+                browser_dropdown.change(get_case_details, browser_dropdown, browser_details)
+
+            # --- Tab 3: Rubric ---
+            with gr.Tab("📊 Judge Rubric"):
+                gr.Markdown(RUBRIC_TEXT)
+
+            # --- Tab 4: About ---
+            with gr.Tab("ℹ️ About"):
+                gr.Markdown(dedent("""\
+                ## Verdict — Multi-Agent Courtroom RL Environment
+
+                **Hackathon:** Meta × HuggingFace × PyTorch OpenEnv (India 2026)
+
+                **What it does:**
+                - Prosecutor and Defense agents argue real legal cases
+                - Each action is scored by a 5-dimension composable rubric
+                - Partial observability: each side has hidden evidence cards
+                - Trained via GRPO self-play to beat sycophancy
+
+                **Tech Stack:**
+                - [OpenEnv](https://github.com/meta-pytorch/OpenEnv) v0.2.3
+                - HuggingFace TRL (GRPO training)
+                - Unsloth (fast fine-tuning)
+                - Gradio (this demo)
+
+                **Case Bank:** 30 cases across 30 legal categories
+                - Easy (8) · Medium (11) · Hard (11)
+
+                **Environment API:**
+                ```python
+                env = VerdictEnvironment(difficulty='hard')
+                obs = env.reset()
+                result = env.step(action)
+                # result.observation, result.reward, result.done
+                ```
+                """))
 
     return demo
+
 
 if __name__ == "__main__":
     build_interface().launch(server_name="0.0.0.0", server_port=7860)
