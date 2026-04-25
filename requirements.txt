@@ -1,1 +1,13 @@
-gradio>=3.40.0
+# Core
+pydantic>=2.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# Demo
+gradio>=4.0
+
+# Training (install separately for Colab)
+# torch>=2.0
+# transformers>=4.40
+# trl>=0.8
+# unsloth

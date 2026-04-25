@@ -1,30 +1,89 @@
+# OpenEnv Environment Manifest — Verdict ⚖️
+# https://github.com/meta-pytorch/OpenEnv
+
 name: verdict
 version: 1.0.0
-description: A Multi-Agent adversarial courtroom simulation (POMDP) enforcing logical argumentation and theory-of-mind reasoning.
+description: >
+  Multi-agent adversarial courtroom POMDP where Prosecutor and Defense agents
+  argue cases with hidden evidence, plea bargaining, and rubric-scored rewards.
+  Trains theory-of-mind reasoning and anti-sycophancy via GRPO self-play.
+
 authors:
-  - name: 3-Person Hackathon Team
+  - name: Verdict Team (Meta x HuggingFace Hackathon 2026)
+
+# ─── Environment ──────────────────────────────────────────────────────
 envs:
-  - name: CourtroomEnv
-    entrypoint: verdict.env:CourtroomEnv
-    description: Turn-based POMDP testing adversarial rhetoric and evidence handling.
-    tasks:
-      - name: Trial-Tier-1
-        entrypoint: verdict.tasks:TrialTier1
-        description: Single-charge case evaluation with straightforward evidence.
-      - name: Trial-Tier-2
-        entrypoint: verdict.tasks:TrialTier2
-        description: Multi-charge cases with conflicting partial evidence.
+  - name: VerdictEnvironment
+    entrypoint: server.verdict_environment:VerdictEnvironment
+    description: >
+      Turn-based POMDP courtroom simulation. Two agents (Prosecutor, Defense)
+      argue across 6 phases with partial observability and composable rubric rewards.
+    action_model: server.models:VerdictAction
+    observation_model: server.models:VerdictObservation
+    state_model: server.models:VerdictState
+
+    # Phase structure
+    episode_phases:
+      - case_briefing
+      - plea_bargain
+      - opening_statements
+      - argument_rounds
+      - closing_statements
+      - judge_deliberation
+
+    # Action space
+    action_types:
+      - plea
+      - argue
+      - object
+      - reveal_evidence
+      - concede
+      - close
+
+    # Reward rubric (composable, dense signal)
+    reward_rubric:
+      coherence: { weight: 0.30, description: "Logical argument structure" }
+      evidence_usage: { weight: 0.20, description: "Strategic use of evidence" }
+      counter_quality: { weight: 0.20, description: "Rebuttal of opponent points" }
+      consistency: { weight: 0.15, description: "No self-contradiction" }
+      verdict_alignment: { weight: 0.15, description: "Terminal win bonus" }
+
+# ─── Server ───────────────────────────────────────────────────────────
+server:
+  entrypoint: server.app:app
+  framework: fastapi
+  dockerfile: server/Dockerfile
+  port: 7860
+
+# ─── Dependencies ─────────────────────────────────────────────────────
 dependencies:
-  - openenv
-  - pydantic
-  - torch
-  - transformers
-  - trl
-  - unsloth
+  core:
+    - openenv-core>=0.2.3
+    - pydantic>=2.0
+    - fastapi>=0.104.0
+    - uvicorn>=0.24.0
+  training:
+    - torch>=2.0
+    - transformers>=4.40
+    - trl>=0.8
+    - unsloth
+  demo:
+    - gradio>=4.0
+
+# ─── Metadata ─────────────────────────────────────────────────────────
 tags:
   - multi-agent
   - pomdp
   - adversarial
   - theory-of-mind
-  - nlp
+  - legal-reasoning
+  - anti-sycophancy
   - grpo
+  - self-play
+
+theme: wild-card
+hackathon: meta-hf-openenv-2026
+case_count: 30
+max_rounds: 4
+agents: 2
+observability: partial

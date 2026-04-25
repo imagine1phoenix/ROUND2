@@ -1,0 +1,542 @@
+[
+  {
+    "id": "C001",
+    "title": "State vs. Arjun Mehta",
+    "category": "Employment",
+    "charge": "Wrongful termination without due process",
+    "facts": "Arjun Mehta was fired after 5 years at TechCorp without any prior warning letter. The company claims performance issues. Arjun claims he was fired in retaliation for reporting a workplace safety violation to HR two weeks before his termination.",
+    "prosecutor_evidence": [
+      "HR records showing no prior performance warnings issued",
+      "Whistleblower complaint filed exactly 14 days before termination",
+      "Email from manager saying 'we need to let him go soon' sent 3 days after complaint"
+    ],
+    "defense_evidence": [
+      "Quarterly performance reviews showing declining output metrics",
+      "Client complaint log with 4 entries from past 6 months",
+      "Company policy document allowing termination without warning for performance"
+    ],
+    "difficulty": "easy"
+  },
+  {
+    "id": "C002",
+    "title": "State vs. Priya Sharma",
+    "category": "Contract",
+    "charge": "Breach of contract \u2014 software delivery failure",
+    "facts": "Priya's startup missed a software delivery deadline by 3 months. The client claims $50,000 in business losses. Priya argues that 12 undocumented scope changes by the client caused the delay.",
+    "prosecutor_evidence": [
+      "Original signed contract with explicit delivery deadline",
+      "Client financial loss documentation certified by auditor",
+      "No formal extension request filed by Priya's team"
+    ],
+    "defense_evidence": [
+      "Email chain documenting 12 scope change requests by client",
+      "Signed change request approvals showing client accepted delays",
+      "Industry standard showing 3-month delays are normal for scope changes of this magnitude"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C003",
+    "title": "State vs. Rohan Industries",
+    "category": "Environmental",
+    "charge": "Illegal chemical waste disposal in protected river",
+    "facts": "Rohan Industries' factory was found disposing chemical waste in the Narmada river tributary. The company blames a subcontractor. Nearby residents report skin rashes and contaminated water.",
+    "prosecutor_evidence": [
+      "Water quality test results showing 10x legal chemical limit",
+      "Satellite imagery of waste pipes leading from factory to river",
+      "Resident medical reports documenting health issues"
+    ],
+    "defense_evidence": [
+      "Subcontractor agreement making them solely responsible for waste disposal",
+      "Internal compliance audit completed 1 month prior showing clean record",
+      "Factory waste logs showing proper disposal recorded"
+    ],
+    "difficulty": "easy"
+  },
+  {
+    "id": "C004",
+    "title": "State vs. Dr. Kavya Nair",
+    "category": "Medical",
+    "charge": "Medical negligence leading to patient harm",
+    "facts": "A patient suffered permanent nerve damage after a routine knee surgery performed by Dr. Kavya Nair. The prosecution claims she skipped a mandatory pre-surgery checklist. The defense argues the complication was a known 1-in-1000 risk disclosed to the patient.",
+    "prosecutor_evidence": [
+      "Hospital record showing pre-surgery checklist was not signed",
+      "Expert testimony that proper protocol would have flagged the nerve proximity",
+      "Patient testimony confirming no risk disclosure was given verbally"
+    ],
+    "defense_evidence": [
+      "Signed patient consent form listing nerve damage as a known risk",
+      "Dr. Nair's 15-year record with zero prior negligence complaints",
+      "Medical literature confirming this complication occurs without any negligence"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C005",
+    "title": "State vs. Vikram Logistics Ltd.",
+    "category": "Consumer",
+    "charge": "Consumer fraud \u2014 misrepresentation of delivery service",
+    "facts": "Vikram Logistics advertised guaranteed next-day delivery but failed to deliver 2,300 packages on time during the festive season. Customers paid a premium for the service. The company claims unprecedented demand caused the failure.",
+    "prosecutor_evidence": [
+      "Advertising materials explicitly guaranteeing next-day delivery",
+      "2,300 customer complaints filed within a 2-week window",
+      "Internal email from CEO saying 'we knew we couldn't handle this volume'"
+    ],
+    "defense_evidence": [
+      "Meteorological report showing unprecedented flooding in key logistics routes",
+      "Refund records showing 90% of affected customers were compensated",
+      "Terms and conditions clause citing force majeure exemptions"
+    ],
+    "difficulty": "easy"
+  },
+  {
+    "id": "C006",
+    "title": "State vs. Meera Kapoor",
+    "category": "Intellectual Property",
+    "charge": "Copyright infringement \u2014 plagiarism of a novel",
+    "facts": "Author Meera Kapoor published a bestselling thriller whose central plot, character names, and three key scenes are allegedly copied from an unpublished manuscript submitted to her publisher in 2021. The original author claims deliberate theft.",
+    "prosecutor_evidence": [
+      "Side-by-side comparison of 11 identical plot points",
+      "Publisher access logs showing Meera's editor reviewed the original manuscript",
+      "Three character names identical to those in the unpublished work"
+    ],
+    "defense_evidence": [
+      "Meera's personal notebooks from 2019 showing early drafts predating the manuscript",
+      "Expert testimony that the plot structure follows a common thriller archetype",
+      "Publisher policy showing manuscripts are reviewed by separate editorial teams"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C007",
+    "title": "State vs. CryptoVault Inc.",
+    "category": "Financial",
+    "charge": "Securities fraud \u2014 misleading investors about platform stability",
+    "facts": "CryptoVault raised $12 million from retail investors claiming their platform had 'military-grade security.' Six months later, a hack drained $8 million. Internal audits later revealed the security was never certified.",
+    "prosecutor_evidence": [
+      "Marketing brochure claiming military-grade certified security",
+      "Security audit report showing certification was never obtained",
+      "Investor testimonies of financial losses"
+    ],
+    "defense_evidence": [
+      "CEO's statement that 'military-grade' was used colloquially, not as a legal claim",
+      "Evidence that a sophisticated nation-state attack caused the hack",
+      "Post-hack compensation plan offered to all affected investors"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C008",
+    "title": "State vs. Principal Suresh Kumar",
+    "category": "Education",
+    "charge": "Discrimination \u2014 unfair expulsion of a student based on religion",
+    "facts": "Student Aisha Khan was expelled from St. Xavier's Academy after wearing a hijab to school. The principal claims it violated the uniform policy. Aisha's family argues it is a protected religious practice and the policy was selectively enforced.",
+    "prosecutor_evidence": [
+      "Photos of other students wearing religious symbols without disciplinary action",
+      "School constitution showing religious accommodations are permitted",
+      "Aisha's academic record showing zero prior disciplinary issues"
+    ],
+    "defense_evidence": [
+      "Written uniform policy explicitly prohibiting headwear of any kind",
+      "Evidence that the policy was communicated at admission",
+      "School's minority enrollment data showing non-discriminatory admissions"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C009",
+    "title": "State vs. AutoDrive Technologies",
+    "category": "Technology",
+    "charge": "Criminal negligence \u2014 autonomous vehicle fatality",
+    "facts": "An AutoDrive self-driving car struck and killed a pedestrian at a crosswalk. Logs show the vehicle's object detection failed to classify the pedestrian as human. The company argues the driver had overridden autopilot 3 seconds before impact.",
+    "prosecutor_evidence": [
+      "Vehicle sensor logs showing object detection failure",
+      "Expert testimony that the system should have detected the pedestrian",
+      "Internal memo from 6 months prior flagging the exact detection flaw"
+    ],
+    "defense_evidence": [
+      "Log showing human driver took manual control 3 seconds before impact",
+      "Evidence that the driver was looking at their phone when they overrode",
+      "AutoDrive's overall safety record showing 99.97% incident-free miles"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C010",
+    "title": "State vs. Rajan & Sons Construction",
+    "category": "Construction",
+    "charge": "Building code violation causing structural collapse",
+    "facts": "An apartment building constructed by Rajan & Sons partially collapsed during monsoon season, injuring 14 residents. Inspection revealed substandard concrete was used. The company claims the collapse was caused by an unprecedented storm.",
+    "prosecutor_evidence": [
+      "Material test report showing concrete mix was 40% below required strength",
+      "Bribe records linking inspectors to the company during construction",
+      "Structural engineer testimony that standard materials would have withstood the storm"
+    ],
+    "defense_evidence": [
+      "Meteorological data showing rainfall was 300% above historical average",
+      "Building inspection certificates signed off at each construction phase",
+      "Evidence that neighboring buildings with similar construction also sustained damage"
+    ],
+    "difficulty": "easy"
+  },
+  {
+    "id": "C011",
+    "title": "State vs. InfluenceMax Agency",
+    "category": "Advertising",
+    "charge": "Deceptive advertising \u2014 undisclosed paid promotions",
+    "facts": "InfluenceMax coordinated 45 social media influencers to promote a weight loss supplement without disclosing paid partnerships. The supplement was later found to have no clinical efficacy. Consumers spent an average of 8,000 rupees each.",
+    "prosecutor_evidence": [
+      "Payment records linking agency to all 45 influencers",
+      "None of the promotional posts contained required disclosure tags",
+      "Clinical study showing supplement had zero statistically significant effect"
+    ],
+    "defense_evidence": [
+      "Influencer contracts stating they were responsible for their own disclosures",
+      "Supplement containing all legally approved ingredients",
+      "Consumer terms stating individual results may vary"
+    ],
+    "difficulty": "easy"
+  },
+  {
+    "id": "C012",
+    "title": "State vs. DataHarvest Corp",
+    "category": "Privacy",
+    "charge": "Illegal collection and sale of user biometric data",
+    "facts": "DataHarvest's fitness app collected facial recognition data from 2.1 million users without explicit consent and sold it to three insurance companies. The app's privacy policy mentioned 'anonymized analytics' but not biometric data sales.",
+    "prosecutor_evidence": [
+      "Database records showing biometric data linked to user identities",
+      "Transaction records of data sales to insurance companies",
+      "Privacy policy analysis showing biometric collection was never disclosed"
+    ],
+    "defense_evidence": [
+      "Terms of service clause allowing sale of 'aggregated user insights'",
+      "Evidence that data was encrypted and not directly identifiable",
+      "Insurance companies' statements that data was used only for product improvement"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C013",
+    "title": "State vs. Chef Marco Rossi",
+    "category": "Food Safety",
+    "charge": "Criminal negligence \u2014 food poisoning outbreak at restaurant",
+    "facts": "34 diners were hospitalized after eating at Marco's Fine Dining. Health inspectors found Salmonella contamination traced to improperly stored chicken. Marco claims a supplier delivered already-contaminated stock.",
+    "prosecutor_evidence": [
+      "Health inspection report citing multiple temperature control violations",
+      "Employee testimony that chicken was stored at incorrect temperatures for 18 hours",
+      "Laboratory report tracing the Salmonella strain to Marco's kitchen specifically"
+    ],
+    "defense_evidence": [
+      "Supplier delivery records showing chicken was within temperature limits on arrival",
+      "Marco's restaurant holding a 5-star hygiene rating from prior inspections",
+      "Evidence that three other restaurants using the same supplier reported similar issues"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C014",
+    "title": "State vs. Horizon Bank",
+    "category": "Banking",
+    "charge": "Predatory lending \u2014 targeting elderly customers with high-interest loans",
+    "facts": "Horizon Bank approved 340 loans to senior citizens above 70 years with interest rates of 28% APR. Applicants were not clearly informed of the total repayment amount. 89 of these borrowers defaulted and lost their homes.",
+    "prosecutor_evidence": [
+      "Loan documents showing interest rate buried in page 12 footnotes",
+      "Training materials instructing staff to 'close fast' with elderly customers",
+      "Default records disproportionately affecting customers over 70"
+    ],
+    "defense_evidence": [
+      "Signed acknowledgment forms showing customers confirmed understanding the terms",
+      "Industry benchmark showing 28% APR is standard for unsecured personal loans",
+      "Bank's free financial literacy program offered to all customers"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C015",
+    "title": "State vs. ProSports Academy",
+    "category": "Sports",
+    "charge": "Doping \u2014 administering performance-enhancing substances to minors",
+    "facts": "Three 16-year-old athletes at ProSports Academy tested positive for EPO, a banned endurance enhancer. The academy director claims the athletes took supplements independently. Blood tests show EPO levels consistent with systematic administration.",
+    "prosecutor_evidence": [
+      "EPO blood levels 6x higher than consistent with any legal supplement",
+      "Pharmacy records showing bulk EPO purchase by academy's medical team",
+      "Testimony from a former coach witnessing injections being administered"
+    ],
+    "defense_evidence": [
+      "Athletes' statements claiming they took supplements bought online independently",
+      "Academy's zero-tolerance doping policy document",
+      "Medical officer's claim that EPO was prescribed for legitimate anemia treatment"
+    ],
+    "difficulty": "easy"
+  },
+  {
+    "id": "C016",
+    "title": "State vs. GreenLeaf Pharma",
+    "category": "Pharmaceutical",
+    "charge": "Suppression of adverse drug trial data",
+    "facts": "GreenLeaf Pharma received approval for an antidepressant after submitting trial data showing 68% efficacy. A whistleblower revealed that 3 trials showing negative outcomes and 2 patient deaths were never submitted to regulators.",
+    "prosecutor_evidence": [
+      "Internal trial registry showing 5 unpublished studies",
+      "Death reports from suppressed trials",
+      "Email from R&D head saying 'these results don't go in the submission'"
+    ],
+    "defense_evidence": [
+      "Evidence that the unpublished trials had methodological flaws making them invalid",
+      "Regulatory submission showing all required trials were included per guidelines",
+      "Post-market surveillance data showing the drug has helped 2 million patients"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C017",
+    "title": "State vs. Neha Verma",
+    "category": "Cyber Crime",
+    "charge": "Identity theft and financial fraud using deepfake technology",
+    "facts": "Neha Verma is accused of creating deepfake videos impersonating a CEO to authorize 2.3 crore rupees in wire transfers from a company. The company's finance team transferred funds believing they were following executive instructions.",
+    "prosecutor_evidence": [
+      "Digital forensics tracing deepfake creation tools to Neha's laptop",
+      "IP logs linking the fraudulent video calls to Neha's home network",
+      "Bank records showing transferred funds moved to an account linked to Neha"
+    ],
+    "defense_evidence": [
+      "Neha's alibi placing her in another city during the transfer",
+      "Evidence that Neha's laptop was reported stolen 1 week before the fraud",
+      "Cybersecurity expert testimony that her home network could have been compromised"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C018",
+    "title": "State vs. MindWell AI",
+    "category": "AI Ethics",
+    "charge": "Negligence \u2014 AI mental health chatbot linked to patient suicide",
+    "facts": "A 19-year-old user of MindWell's AI therapy chatbot died by suicide after the chatbot allegedly validated their self-harm ideation rather than escalating to a human counselor. Logs show the AI engaged with the topic for 47 minutes without triggering a crisis protocol.",
+    "prosecutor_evidence": [
+      "Chat logs showing AI engaging with self-harm discussion without intervention",
+      "MindWell's own protocol requiring human escalation within 5 minutes of crisis signals",
+      "AI safety researcher testimony that the system failed basic crisis detection"
+    ],
+    "defense_evidence": [
+      "User had explicitly disabled crisis escalation in app settings",
+      "Terms of service stating MindWell is not a substitute for clinical care",
+      "Evidence that the user had a prior therapist who was the appropriate point of contact"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C019",
+    "title": "State vs. ClearSkies Airlines",
+    "category": "Aviation",
+    "charge": "Negligence \u2014 knowingly operating aircraft with faulty navigation system",
+    "facts": "ClearSkies Flight 447 made an emergency landing after its navigation system failed mid-flight. An investigation revealed the airline had received 3 manufacturer warnings about the faulty system but continued operations to avoid cancellation costs.",
+    "prosecutor_evidence": [
+      "3 manufacturer safety bulletins received and signed by maintenance chief",
+      "Internal cost-benefit analysis choosing operations over grounding",
+      "Pilot testimony that the system had shown errors on 2 prior flights that week"
+    ],
+    "defense_evidence": [
+      "Evidence that the manufacturer bulletins were advisory, not mandatory grounding orders",
+      "Emergency landing executed safely with zero passenger injuries",
+      "Aviation regulator records showing the aircraft was certified for continued operation"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C020",
+    "title": "State vs. Mayor Dinesh Patil",
+    "category": "Corruption",
+    "charge": "Bribery \u2014 awarding city infrastructure contract in exchange for payments",
+    "facts": "Mayor Dinesh Patil awarded a 45 crore rupee road construction contract to Buildfast Ltd., a company owned by his brother-in-law. Investigators found 80 lakh rupees transferred to a shell company linked to the mayor's family one week after the contract award.",
+    "prosecutor_evidence": [
+      "Bank transfer records linking shell company to mayor's family",
+      "Buildfast's bid was 18% higher than the next lowest bidder",
+      "Whistleblower testimony from a municipal officer present at the decision meeting"
+    ],
+    "defense_evidence": [
+      "Buildfast's portfolio showing superior quality scores on prior municipal projects",
+      "Mayor's recusal declaration on file, claiming his deputy made the final call",
+      "Shell company records showing it was established for a separate legitimate business 2 years prior"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C021",
+    "title": "State vs. EduTech Pioneers",
+    "category": "Education Technology",
+    "charge": "Fraudulent certification \u2014 selling fake professional credentials",
+    "facts": "EduTech Pioneers sold 'industry-recognized' data science certificates to 4,200 students for 25,000 rupees each. Employers discovered the certificates were fabricated. Students used them to secure jobs and were subsequently terminated.",
+    "prosecutor_evidence": [
+      "Certificate design copied from a legitimate institution's template",
+      "Accreditation body confirmation that EduTech was never registered",
+      "Employer testimonies and termination records from 34 companies"
+    ],
+    "defense_evidence": [
+      "Marketing materials stating 'industry-recognized' referred to peer recognition, not formal accreditation",
+      "Course curriculum review showing genuine educational content was delivered",
+      "Refund policy showing 60% of students were offered refunds voluntarily"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C022",
+    "title": "State vs. SocialPulse Media",
+    "category": "Media",
+    "charge": "Defamation \u2014 publishing false criminal allegations against a private citizen",
+    "facts": "SocialPulse published a viral article claiming local businessman Rahul Anand had embezzled funds from a community trust. The article cited anonymous sources. No charges were ever filed. Rahul lost his business and suffered documented mental health consequences.",
+    "prosecutor_evidence": [
+      "Article containing specific false factual claims, not opinion",
+      "SocialPulse's own editorial policy requiring source verification before publication",
+      "Business valuation report showing Rahul's losses directly following the article"
+    ],
+    "defense_evidence": [
+      "Evidence that SocialPulse made 3 attempts to contact Rahul for comment before publishing",
+      "Two sources (anonymous but documented internally) independently corroborating the story",
+      "Partial financial discrepancy in trust records that formed the basis of the reporting"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C023",
+    "title": "State vs. Coldchain Logistics",
+    "category": "Healthcare Supply Chain",
+    "charge": "Negligence \u2014 vaccine spoilage due to cold chain failure",
+    "facts": "Coldchain Logistics was responsible for transporting 80,000 COVID vaccine doses to rural clinics. A refrigeration failure was detected but not reported for 11 hours, rendering all doses ineffective. 12,000 people were vaccinated with spoiled doses.",
+    "prosecutor_evidence": [
+      "Sensor logs showing temperature breach detected at 6 AM, reported at 5 PM",
+      "SOPs requiring breach reporting within 30 minutes",
+      "Medical testimony that spoiled vaccines offer zero protection and false security"
+    ],
+    "defense_evidence": [
+      "Driver testimony that the sensor alarm was intermittent and ambiguous",
+      "Evidence that the reporting system itself was down due to a server outage",
+      "Post-incident audit showing the breach was borderline and doses may have retained partial efficacy"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C024",
+    "title": "State vs. FashionForward Ltd.",
+    "category": "Labor",
+    "charge": "Labor exploitation \u2014 illegal overtime and wage theft",
+    "facts": "FashionForward's garment factory workers were paid 180 rupees per day but worked 14-hour shifts during peak season with no overtime compensation. 340 workers filed a collective complaint. The company claims workers voluntarily agreed to the hours.",
+    "prosecutor_evidence": [
+      "Time logs showing consistent 14-hour shifts for 6 consecutive weeks",
+      "Payroll records confirming flat daily rate with zero overtime line items",
+      "Labor law citing mandatory 1.5x pay for hours beyond 8 per day"
+    ],
+    "defense_evidence": [
+      "Signed voluntary overtime agreements from 280 of the 340 workers",
+      "Evidence that base daily wage was 20% above regional minimum wage",
+      "Worker testimony that overtime hours were genuinely optional and declined by some"
+    ],
+    "difficulty": "easy"
+  },
+  {
+    "id": "C025",
+    "title": "State vs. Professor Anand Krishnan",
+    "category": "Academic",
+    "charge": "Research fraud \u2014 fabrication of clinical trial results",
+    "facts": "Professor Anand Krishnan published a widely cited study claiming a new diabetes drug reduced HbA1c by 2.1 points. A replication attempt by an independent lab found zero effect. Raw data analysis revealed over 40% of patient records were duplicated or altered.",
+    "prosecutor_evidence": [
+      "Statistical analysis showing impossible data distributions in original study",
+      "40% of patient ID numbers appearing twice with different outcome values",
+      "Independent replication study showing zero drug effect across 300 patients"
+    ],
+    "defense_evidence": [
+      "Professor's claim that data discrepancies were caused by a research assistant without his knowledge",
+      "Evidence that the independent replication used a slightly different patient demographic",
+      "15-year publication record with 60 prior studies showing no prior misconduct"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C026",
+    "title": "State vs. NexGen Robotics",
+    "category": "Workplace Safety",
+    "charge": "Criminal negligence \u2014 industrial robot injury at warehouse",
+    "facts": "A warehouse worker lost three fingers when a NexGen sorting robot malfunctioned during a manual override. The robot's safety cage had been removed by management to increase throughput. NexGen claims the client voided the warranty by removing safety guards.",
+    "prosecutor_evidence": [
+      "NexGen sales rep email approving the safety cage removal to 'boost efficiency'",
+      "Robot firmware logs showing 14 prior near-miss incidents that were never reported",
+      "OSHA-equivalent inspection report citing NexGen's inadequate safety documentation"
+    ],
+    "defense_evidence": [
+      "Client's signed waiver assuming responsibility for any modifications",
+      "NexGen's installation manual explicitly prohibiting cage removal",
+      "Evidence that the worker bypassed the emergency stop button to retrieve a jammed package"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C027",
+    "title": "State vs. TrueBlue Insurance",
+    "category": "Insurance",
+    "charge": "Bad faith denial \u2014 systematically rejecting valid health insurance claims",
+    "facts": "TrueBlue Insurance denied 2,800 claims for cancer treatment over 18 months using an internal algorithm. An audit revealed the algorithm was tuned to reject claims above 5 lakh rupees regardless of medical necessity. 43 patients delayed treatment; 7 died.",
+    "prosecutor_evidence": [
+      "Algorithm source code showing hard rejection threshold at 5 lakh rupees",
+      "Internal memo from CFO: 'every rejected claim saves us 3.2 lakh on average'",
+      "Death certificates of 7 patients whose claims were wrongfully denied"
+    ],
+    "defense_evidence": [
+      "Algorithm was one of three review stages; human reviewers had override authority",
+      "Evidence that 60% of initially denied claims were approved on manual appeal",
+      "Industry comparison showing TrueBlue's denial rate was within the top-quartile norm"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C028",
+    "title": "State vs. Dr. Sameer Joshi",
+    "category": "Ethics",
+    "charge": "Organ transplant fraud \u2014 prioritizing wealthy patients on waitlist",
+    "facts": "Dr. Sameer Joshi, head of transplant surgery at Metro Hospital, is accused of moving 6 wealthy patients ahead of 23 critical patients on the kidney transplant waitlist. Three of the bypassed patients died waiting. Joshi claims medical urgency justified the decisions.",
+    "prosecutor_evidence": [
+      "Waitlist modification logs showing manual overrides by Dr. Joshi",
+      "Financial records showing 3 of the 6 prioritized patients made large hospital donations",
+      "Expert panel review concluding 4 of the 6 patients had lower medical urgency scores"
+    ],
+    "defense_evidence": [
+      "Medical charts showing the prioritized patients had rare tissue matches requiring immediate action",
+      "Hospital policy granting chief surgeon discretion for time-sensitive matches",
+      "Testimony from transplant coordinator supporting Joshi's medical judgment"
+    ],
+    "difficulty": "hard"
+  },
+  {
+    "id": "C029",
+    "title": "State vs. QuickRide App",
+    "category": "Gig Economy",
+    "charge": "Worker misclassification \u2014 denying employee benefits to gig drivers",
+    "facts": "QuickRide classifies its 45,000 drivers as independent contractors, denying them health insurance, paid leave, and minimum wage protections. Drivers work fixed 10-hour shifts, use company-branded vehicles, and cannot reject ride requests without penalty.",
+    "prosecutor_evidence": [
+      "Driver contracts showing fixed schedules, mandatory acceptance rates, and branded uniforms",
+      "Labor board ruling that similar companies in the jurisdiction were required to classify drivers as employees",
+      "Testimony from 12 drivers showing they had zero control over pricing or route selection"
+    ],
+    "defense_evidence": [
+      "Drivers can log in and out at will and work for competing platforms simultaneously",
+      "Industry-wide precedent of gig workers being classified as contractors",
+      "QuickRide's optional benefits program offering discounted insurance to drivers"
+    ],
+    "difficulty": "medium"
+  },
+  {
+    "id": "C030",
+    "title": "State vs. AquaPure Bottling",
+    "category": "Public Health",
+    "charge": "Selling contaminated drinking water labeled as purified",
+    "facts": "AquaPure's bottled water tested positive for lead and arsenic at 4x safe limits across 3 independent labs. The company sold 1.2 million bottles in rural areas with limited water testing infrastructure. AquaPure claims a single batch was affected due to a filter malfunction.",
+    "prosecutor_evidence": [
+      "Lab reports from 3 independent facilities showing contamination across multiple batch numbers",
+      "Internal quality control logs showing filter replacement was 6 months overdue",
+      "Hospital records linking 89 cases of heavy metal poisoning to AquaPure's distribution area"
+    ],
+    "defense_evidence": [
+      "Evidence that only 1 of 14 production lines was affected",
+      "Immediate voluntary recall issued within 48 hours of first complaint",
+      "Government certification of AquaPure's facility from 4 months prior showing compliance"
+    ],
+    "difficulty": "easy"
+  }
+]
