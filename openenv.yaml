@@ -1,0 +1,30 @@
+name: verdict
+version: 1.0.0
+description: A Multi-Agent adversarial courtroom simulation (POMDP) enforcing logical argumentation and theory-of-mind reasoning.
+authors:
+  - name: 3-Person Hackathon Team
+envs:
+  - name: CourtroomEnv
+    entrypoint: verdict.env:CourtroomEnv
+    description: Turn-based POMDP testing adversarial rhetoric and evidence handling.
+    tasks:
+      - name: Trial-Tier-1
+        entrypoint: verdict.tasks:TrialTier1
+        description: Single-charge case evaluation with straightforward evidence.
+      - name: Trial-Tier-2
+        entrypoint: verdict.tasks:TrialTier2
+        description: Multi-charge cases with conflicting partial evidence.
+dependencies:
+  - openenv
+  - pydantic
+  - torch
+  - transformers
+  - trl
+  - unsloth
+tags:
+  - multi-agent
+  - pomdp
+  - adversarial
+  - theory-of-mind
+  - nlp
+  - grpo
