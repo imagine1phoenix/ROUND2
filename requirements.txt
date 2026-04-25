@@ -6,8 +6,11 @@ uvicorn>=0.24.0
 # Demo
 gradio>=4.0
 
-# Training (install separately for Colab)
-# torch>=2.0
-# transformers>=4.40
-# trl>=0.8
-# unsloth
+# Training (GPU required — install in Colab or with CUDA)
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+torch>=2.0
+transformers>=4.40
+trl>=0.8
+datasets>=2.0
+accelerate>=0.30
+unsloth
