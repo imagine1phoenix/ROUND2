@@ -15,7 +15,7 @@ tags:
   - openenv
   - pytorch
   - hackathon
-short_description: "Multi-Agent Courtroom RL — argue cases against AI, scored by composable rubric"
+short_description: "Multi-Agent Courtroom RL with composable rubric"
 ---
 
 # ⚖️ Verdict: Training LLMs to Reason, Argue, and Judge like a Lawyer
