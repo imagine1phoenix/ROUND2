@@ -1,8 +1,5 @@
-# Demo
-gradio>=4.0
-
-# Model inference (for trained model demo)
-torch>=2.0
+# Model inference dependencies
+# torch is provided by the Hugging Face Space base environment automatically
 transformers>=4.40
 peft>=0.10.0
 accelerate>=0.27.0
