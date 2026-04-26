@@ -1,14 +1,8 @@
-# Core
-openenv-core>=0.2.3
-pydantic>=2.0
-fastapi>=0.104.0
-uvicorn>=0.24.0
-
 # Demo
 gradio>=4.0
 
-# Training (install separately for Colab)
-# torch>=2.0
-# transformers>=4.40
-# trl>=0.8
-# unsloth
+# Model inference (for trained model demo)
+torch>=2.0
+transformers>=4.40
+peft>=0.10.0
+accelerate>=0.27.0

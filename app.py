@@ -1,386 +1,512 @@
 """
-Verdict — Premium Gradio App (HuggingFace Spaces)
+Verdict ⚖️ — Gradio Demo App
+Integrates trained Qwen2.5-3B-GRPO model for live courtroom episodes.
+Deploy this as app.py in your HuggingFace Space.
 """
-import sys, os, random, json
-from textwrap import dedent
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "server"))
 import gradio as gr
-from models import ActionType, AgentRole, TrialPhase, VerdictAction, VerdictObservation, RubricScore
-from verdict_environment import VerdictEnvironment, load_cases
+import json
+import random
+import re
+import time
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from peft import PeftModel
 
-ALL_CASES = load_cases()
-EASY_CASES = load_cases(difficulty="easy")
-MEDIUM_CASES = load_cases(difficulty="medium")
-HARD_CASES = load_cases(difficulty="hard")
+# ── CONFIG ───────────────────────────────────────────────────
+BASE_MODEL   = "Qwen/Qwen2.5-3B-Instruct"
+TRAINED_MODEL = "Imaginephoenix/verdict-qwen2.5-3b-grpo"
+CASES_PATH   = "cases.json"
+MAX_ROUNDS   = 3
 
-# ── Premium CSS ──────────────────────────────────────────────────────
-APP_CSS = """
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+# ── LOAD CASES ───────────────────────────────────────────────
+with open(CASES_PATH) as f:
+    CASES = json.load(f)
 
-/* ── Global Reset ── */
-* { box-sizing: border-box; }
+CASE_TITLES = [f"{c['id']} — {c['title']}" for c in CASES]
+CASE_MAP    = {f"{c['id']} — {c['title']}": c for c in CASES}
+
+# ── LOAD MODEL ───────────────────────────────────────────────
+print("Loading model...")
+tokenizer = AutoTokenizer.from_pretrained(TRAINED_MODEL)
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = "left"
+
+model = AutoModelForCausalLM.from_pretrained(
+    TRAINED_MODEL,
+    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+    device_map="auto" if torch.cuda.is_available() else "cpu",
+    low_cpu_mem_usage=True,
+)
+model.eval()
+print("✅ Model loaded!")
+
+# ── PROMPTS ──────────────────────────────────────────────────
+SYSTEM_PROMPT = """You are an expert courtroom attorney in a legal simulation.
+Make compelling, specific, and logically sound legal arguments.
+Always reference specific evidence. Be concise (60-120 words).
+Always respond in EXACTLY this format:
+ACTION: [argue|counter|present_evidence|object|close]
+ARGUMENT: [your argument here]"""
+
+JUDGE_PROMPT = """You are an impartial judge evaluating a courtroom debate.
+Review the full transcript carefully and decide who argued better.
+Consider: logical consistency, evidence usage, specificity, and persuasiveness.
+Respond in EXACTLY this format:
+WINNER: [Prosecutor|Defense|Draw]
+SCORE_PROSECUTOR: [0-10]
+SCORE_DEFENSE: [0-10]
+REASONING: [2-3 sentences explaining your decision]"""
+
+# ── REWARD FUNCTION ──────────────────────────────────────────
+LEGAL_KEYWORDS = [
+    "evidence", "proves", "demonstrates", "therefore", "objection",
+    "contract", "violation", "witness", "testimony", "facts", "record",
+    "document", "liability", "negligence", "breach", "damages",
+    "plaintiff", "defendant", "burden", "proof", "exhibit", "statute"
+]
+
+def score_argument(text: str) -> float:
+    score = 0.0
+    text_lower = text.lower()
+    words = text_lower.split()
+
+    has_action   = bool(re.search(r'action\s*:', text_lower))
+    has_argument = bool(re.search(r'argument\s*:', text_lower))
+    if has_action and has_argument:
+        score += 0.25
+    elif has_action or has_argument:
+        score += 0.1
+    else:
+        score -= 0.2
+
+    wc = len(words)
+    if wc < 5:       score -= 0.3
+    elif wc <= 60:   score += 0.15
+    elif wc <= 150:  score += 0.25
+    else:            score += 0.1
+
+    kw = sum(1 for k in LEGAL_KEYWORDS if k in text_lower)
+    score += min(kw * 0.05, 0.25)
+
+    has_num  = bool(re.search(r'\b\d+\b', text))
+    has_name = bool(re.search(r'\b[A-Z][a-z]+\s[A-Z][a-z]+\b', text))
+    score += (0.05 * has_num) + (0.05 * has_name)
+
+    action_match = re.search(r'action\s*:\s*(\w+)', text_lower)
+    if action_match:
+        bonuses = {
+            "present_evidence": 0.10,
+            "counter": 0.08,
+            "close": 0.08,
+            "object": 0.05,
+            "argue": 0.03
+        }
+        score += bonuses.get(action_match.group(1), 0.0)
+
+    return round(min(max(score, -0.5), 1.0), 3)
+
+# ── GENERATION ───────────────────────────────────────────────
+def generate(messages, max_tokens=200, temperature=0.7):
+    input_ids = tokenizer.apply_chat_template(
+        messages,
+        return_tensors="pt",
+        add_generation_prompt=True
+    )
+    if torch.cuda.is_available():
+        input_ids = input_ids.cuda()
+
+    with torch.no_grad():
+        output = model.generate(
+            input_ids,
+            max_new_tokens=max_tokens,
+            temperature=temperature,
+            do_sample=True,
+            pad_token_id=tokenizer.eos_token_id,
+            repetition_penalty=1.1
+        )
+
+    return tokenizer.decode(
+        output[0][input_ids.shape[1]:],
+        skip_special_tokens=True
+    ).strip()
+
+
+def parse_response(text: str) -> dict:
+    action = "argue"
+    argument = text
+
+    a = re.search(r'action\s*:\s*(\w+)', text, re.IGNORECASE)
+    if a and a.group(1).lower() in ["argue","counter","present_evidence","object","close"]:
+        action = a.group(1).lower()
+
+    b = re.search(r'argument\s*:\s*(.+)', text, re.DOTALL | re.IGNORECASE)
+    if b:
+        argument = b.group(1).strip()
+
+    return {"action": action, "argument": argument}
+
+
+def build_prompt(case, role, transcript):
+    history = "\n".join([
+        f"{t['role'].upper()}: {t['content']}"
+        for t in transcript
+    ]) if transcript else "[Court is now in session. You speak first.]"
+
+    evidence_key = f"{role}_evidence"
+    your_evidence = "; ".join(case.get(evidence_key, []))
+
+    return f"""=== CASE ===
+{case['title']} | Charge: {case['charge']}
+Facts: {case['facts']}
+Your Evidence: {your_evidence}
+
+=== TRANSCRIPT ===
+{history}
+
+=== YOUR TURN ===
+You are the {role.upper()}. Make your argument."""
+
+
+# ── MAIN EPISODE RUNNER ──────────────────────────────────────
+def run_episode(case_selection, custom_case_text):
+    """Run a full courtroom episode and yield updates progressively."""
+
+    # Get case
+    if case_selection == "🎲 Random Case":
+        case = random.choice(CASES)
+    elif case_selection == "✏️ Custom Case" and custom_case_text.strip():
+        case = {
+            "id": "CUSTOM",
+            "title": "Custom Case",
+            "category": "Custom",
+            "charge": custom_case_text.strip(),
+            "facts": custom_case_text.strip(),
+            "prosecutor_evidence": ["Evidence submitted by prosecution"],
+            "defense_evidence": ["Evidence submitted by defense"]
+        }
+    else:
+        case = CASE_MAP.get(case_selection, random.choice(CASES))
+
+    transcript = []
+    p_rewards = []
+    d_rewards = []
+
+    # Header
+    header = f"""⚖️ VERDICT — COURTROOM SESSION
+{'═'*50}
+📋 Case: {case['title']}
+⚡ Charge: {case['charge']}
+📜 Facts: {case['facts'][:200]}{'...' if len(case['facts']) > 200 else ''}
+{'═'*50}
+"""
+    yield header, "", "", "🔄 Starting...", "—", "—", "—"
+    time.sleep(0.5)
+
+    full_transcript = header
+
+    # Run rounds
+    for round_num in range(1, MAX_ROUNDS + 1):
+        round_header = f"\n🔔 ROUND {round_num}\n{'─'*40}\n"
+        full_transcript += round_header
+        yield full_transcript, "", "", f"⚖️ Round {round_num} in progress...", "—", "—", "—"
+
+        for role in ["prosecutor", "defense"]:
+            emoji = "⚔️" if role == "prosecutor" else "🛡️"
+            label = role.upper()
+
+            # Show thinking
+            thinking = f"{emoji} {label} is arguing...\n"
+            yield full_transcript + thinking, "", "", f"🤔 {label} thinking...", "—", "—", "—"
+
+            # Generate
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": build_prompt(case, role, transcript)}
+            ]
+            raw = generate(messages, max_tokens=180, temperature=0.75)
+            parsed = parse_response(raw)
+            reward = score_argument(raw)
+
+            # Log
+            turn = {
+                "role": role,
+                "round": round_num,
+                "action": parsed["action"],
+                "content": parsed["argument"],
+                "reward": reward
+            }
+            transcript.append(turn)
+
+            if role == "prosecutor":
+                p_rewards.append(reward)
+            else:
+                d_rewards.append(reward)
+
+            # Format turn
+            action_emoji = {
+                "argue": "💬",
+                "counter": "↩️",
+                "present_evidence": "📎",
+                "object": "🚫",
+                "close": "🔒"
+            }.get(parsed["action"], "💬")
+
+            turn_text = f"""{emoji} {label} [{action_emoji} {parsed['action'].upper()}] (reward: {reward:+.3f})
+{parsed['argument']}
+
+"""
+            full_transcript += turn_text
+            yield full_transcript, "", "", f"✅ {label} argued | reward: {reward:+.3f}", "—", "—", "—"
+            time.sleep(0.3)
+
+    # Judge verdict
+    yield full_transcript, "", "", "👨‍⚖️ Judge deliberating...", "—", "—", "—"
+
+    judge_messages = [
+        {"role": "system", "content": JUDGE_PROMPT},
+        {"role": "user", "content": f"Case: {case['title']}\nCharge: {case['charge']}\n\nFull Transcript:\n" +
+         "\n".join([f"{t['role'].upper()} ({t['action']}): {t['content']}" for t in transcript])}
+    ]
+    judge_raw = generate(judge_messages, max_tokens=200, temperature=0.3)
+
+    # Parse verdict
+    winner = "Draw"
+    p_score = "—"
+    d_score = "—"
+    reasoning = judge_raw
+
+    w = re.search(r'winner\s*:\s*(\w+)', judge_raw, re.IGNORECASE)
+    if w: winner = w.group(1)
+
+    ps = re.search(r'score_prosecutor\s*:\s*(\d+)', judge_raw, re.IGNORECASE)
+    if ps: p_score = ps.group(1) + "/10"
+
+    ds = re.search(r'score_defense\s*:\s*(\d+)', judge_raw, re.IGNORECASE)
+    if ds: d_score = ds.group(1) + "/10"
+
+    r = re.search(r'reasoning\s*:\s*(.+)', judge_raw, re.DOTALL | re.IGNORECASE)
+    if r: reasoning = r.group(1).strip()
+
+    # Final stats
+    p_avg = sum(p_rewards) / len(p_rewards) if p_rewards else 0
+    d_avg = sum(d_rewards) / len(d_rewards) if d_rewards else 0
+
+    verdict_winner_emoji = {
+        "Prosecutor": "⚔️ PROSECUTOR WINS",
+        "Defense": "🛡️ DEFENSE WINS",
+        "Draw": "🤝 DRAW"
+    }.get(winner, "🤝 DRAW")
+
+    verdict_text = f"""
+{'═'*50}
+👨‍⚖️ JUDGE'S VERDICT
+{'═'*50}
+🏆 {verdict_winner_emoji}
+
+📊 Scores:
+   Prosecutor: {p_score}
+   Defense:    {d_score}
+
+💭 Reasoning:
+{reasoning}
+{'═'*50}
+📈 Avg Rewards:
+   Prosecutor: {p_avg:+.3f}
+   Defense:    {d_avg:+.3f}
+"""
+    full_transcript += verdict_text
+
+    yield (
+        full_transcript,
+        verdict_winner_emoji,
+        reasoning,
+        "✅ Episode complete!",
+        p_score,
+        d_score,
+        f"P: {p_avg:+.3f} | D: {d_avg:+.3f}"
+    )
+
+
+# ── GRADIO UI ────────────────────────────────────────────────
+css = """
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap');
+
+:root {
+    --gold: #C9A84C;
+    --dark: #0D0D0D;
+    --darker: #080808;
+    --panel: #141414;
+    --border: #2A2A2A;
+    --text: #E8E0D0;
+    --muted: #888;
+    --prosecutor: #E05252;
+    --defense: #52A0E0;
+    --judge: #C9A84C;
+}
+
 body, .gradio-container {
-    font-family: 'Inter', system-ui, sans-serif !important;
-    background: #06080f !important;
-    color: #e2e8f0 !important;
-}
-.gradio-container { max-width: 1280px !important; margin: 0 auto !important; }
-
-/* ── Animated Hero ── */
-.verdict-hero {
-    position: relative;
-    background: linear-gradient(160deg, #0a0f1e 0%, #111827 40%, #1a1033 100%);
-    border: 1px solid rgba(139,92,246,0.2);
-    border-radius: 28px;
-    padding: 48px 40px 40px;
-    margin-bottom: 28px;
-    overflow: hidden;
-    box-shadow: 0 0 80px rgba(139,92,246,0.08), 0 30px 60px rgba(0,0,0,0.4);
-}
-.verdict-hero::before {
-    content: '';
-    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-    background: radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 70% 80%, rgba(168,85,247,0.06) 0%, transparent 50%);
-    animation: heroGlow 8s ease-in-out infinite alternate;
-}
-@keyframes heroGlow {
-    0% { transform: translate(0, 0) scale(1); }
-    100% { transform: translate(2%, -2%) scale(1.05); }
-}
-.verdict-hero .hero-inner { position: relative; z-index: 2; }
-.verdict-hero h1 {
-    font-size: 3rem; font-weight: 900; margin: 0 0 6px;
-    background: linear-gradient(135deg, #818cf8, #a78bfa, #c084fc, #f472b6);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    letter-spacing: -0.02em; line-height: 1.1;
-}
-.verdict-hero .tagline {
-    font-size: 1.05rem; color: rgba(203,213,225,0.75); max-width: 640px;
-    line-height: 1.6; margin: 0;
-}
-.verdict-hero .badge-row { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
-.verdict-hero .badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 14px; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
-    background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.25);
-    color: #c4b5fd; letter-spacing: 0.02em; backdrop-filter: blur(8px);
-}
-.verdict-hero .badge.green { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.25); color: #86efac; }
-.verdict-hero .badge.amber { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.25); color: #fcd34d; }
-.verdict-hero .stats-row {
-    display: flex; gap: 32px; margin-top: 24px; padding-top: 20px;
-    border-top: 1px solid rgba(148,163,184,0.08);
-}
-.verdict-hero .stat { text-align: center; }
-.verdict-hero .stat-num {
-    font-size: 1.8rem; font-weight: 800;
-    background: linear-gradient(135deg, #60a5fa, #a78bfa);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
-.verdict-hero .stat-label { font-size: 0.7rem; color: rgba(148,163,184,0.6); text-transform: uppercase; letter-spacing: 0.1em; }
-
-/* ── Tabs ── */
-.gr-tabs { border: none !important; }
-button.tab-nav { 
-    font-weight: 600 !important; font-size: 0.9rem !important;
-    border-radius: 12px 12px 0 0 !important;
-    transition: all 0.25s ease !important;
+    background: var(--darker) !important;
+    font-family: 'Inter', sans-serif !important;
+    color: var(--text) !important;
 }
 
-/* ── Cards ── */
-.glass-card {
-    background: linear-gradient(145deg, rgba(15,23,42,0.92), rgba(20,27,48,0.88)) !important;
-    border: 1px solid rgba(100,116,139,0.12) !important;
-    border-radius: 20px !important; padding: 24px !important;
-    backdrop-filter: blur(20px) !important;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.2) !important;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
-}
-.glass-card:hover {
-    border-color: rgba(139,92,246,0.25) !important;
-    box-shadow: 0 8px 40px rgba(139,92,246,0.08) !important;
+h1, h2, h3 { font-family: 'Playfair Display', serif !important; }
+
+.verdict-header {
+    text-align: center;
+    padding: 2rem 1rem 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.5rem;
 }
 
-/* ── Transcript ── */
-.transcript-box {
-    background: linear-gradient(180deg, rgba(6,8,15,0.95), rgba(15,23,42,0.9)) !important;
-    border: 1px solid rgba(100,116,139,0.15) !important;
-    border-radius: 16px !important; padding: 24px !important;
-    font-family: 'JetBrains Mono', monospace !important; font-size: 0.85rem !important;
-    color: #cbd5e1 !important; max-height: 600px; overflow-y: auto;
+.verdict-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    margin: 0;
+}
+
+.verdict-subtitle {
+    font-size: 0.85rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+}
+
+.transcript-box textarea {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.82rem !important;
     line-height: 1.7 !important;
-}
-.transcript-box h2 { color: #a78bfa !important; }
-.transcript-box strong { color: #e2e8f0 !important; }
-.transcript-box code {
-    background: rgba(139,92,246,0.15) !important; color: #c4b5fd !important;
-    padding: 2px 8px !important; border-radius: 6px !important; font-size: 0.8rem !important;
-}
-.transcript-box blockquote {
-    border-left: 3px solid rgba(139,92,246,0.4) !important;
-    padding-left: 14px !important; margin: 8px 0 !important;
-    color: rgba(203,213,225,0.8) !important; font-style: italic !important;
+    padding: 1rem !important;
 }
 
-/* ── Rubric Scores ── */
-.score-card {
-    background: linear-gradient(145deg, rgba(15,20,35,0.95), rgba(20,25,50,0.9)) !important;
-    border: 1px solid rgba(99,102,241,0.15) !important;
-    border-radius: 16px !important; padding: 20px !important; color: #e2e8f0 !important;
-}
-.score-card strong { color: #a78bfa !important; }
-
-/* ── Buttons ── */
-.run-trial-btn {
-    background: linear-gradient(135deg, #7c3aed, #6d28d9, #5b21b6) !important;
-    border: 1px solid rgba(139,92,246,0.3) !important;
-    border-radius: 14px !important; padding: 14px 32px !important;
-    font-weight: 700 !important; font-size: 1rem !important;
-    color: white !important; letter-spacing: 0.02em !important;
-    box-shadow: 0 4px 20px rgba(124,58,237,0.3) !important;
-    transition: all 0.3s ease !important;
-}
-.run-trial-btn:hover {
-    box-shadow: 0 6px 30px rgba(124,58,237,0.5) !important;
-    transform: translateY(-1px) !important;
+.stat-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
 }
 
-/* ── Form Fields ── */
-.gr-input, .gr-dropdown, textarea, select {
-    background: rgba(15,23,42,0.8) !important;
-    border: 1px solid rgba(100,116,139,0.2) !important;
-    border-radius: 12px !important; color: #e2e8f0 !important;
-    transition: border-color 0.2s ease !important;
+.run-btn {
+    background: var(--gold) !important;
+    color: var(--dark) !important;
+    font-weight: 700 !important;
+    font-family: 'Playfair Display', serif !important;
+    font-size: 1.1rem !important;
+    letter-spacing: 0.05em !important;
+    border: none !important;
+    padding: 0.75rem 2rem !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
 }
-.gr-input:focus, textarea:focus {
-    border-color: rgba(139,92,246,0.5) !important;
-    box-shadow: 0 0 0 3px rgba(139,92,246,0.1) !important;
-}
-label { color: #94a3b8 !important; font-weight: 600 !important; font-size: 0.85rem !important; }
 
-/* ── Evidence Colors ── */
-.evidence-prosecutor { color: #f87171 !important; }
-.evidence-defense { color: #60a5fa !important; }
-
-/* ── About Page ── */
-.about-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 16px; }
-.about-item {
-    background: rgba(15,23,42,0.7); border: 1px solid rgba(100,116,139,0.1);
-    border-radius: 16px; padding: 20px; text-align: center;
-    transition: all 0.3s ease;
+.run-btn:hover {
+    background: #D4B866 !important;
+    transform: translateY(-1px);
 }
-.about-item:hover { border-color: rgba(139,92,246,0.3); transform: translateY(-2px); }
-.about-item .icon { font-size: 2rem; margin-bottom: 8px; }
-.about-item h4 { margin: 0 0 4px; color: #e2e8f0; font-weight: 700; }
-.about-item p { margin: 0; color: rgba(148,163,184,0.7); font-size: 0.82rem; line-height: 1.5; }
 
-/* ── Rubric Table ── */
-.rubric-section table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.rubric-section th {
-    background: rgba(139,92,246,0.12) !important; color: #c4b5fd !important;
-    padding: 12px 16px !important; font-weight: 700 !important; text-align: left;
-    border-bottom: 2px solid rgba(139,92,246,0.2) !important;
+label {
+    color: var(--muted) !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
 }
-.rubric-section td {
-    padding: 10px 16px !important; border-bottom: 1px solid rgba(100,116,139,0.08) !important;
-    color: #cbd5e1 !important;
+
+.gr-textbox, .gr-dropdown select {
+    background: var(--panel) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
 }
 """
 
-# ── Logic ─────────────────────────────────────────────────────────────
+with gr.Blocks(css=css, title="Verdict ⚖️ Courtroom AI") as demo:
 
-def format_case_list():
-    choices = []
-    for c in ALL_CASES:
-        tier = c.get("difficulty", "medium").upper()
-        icon = {"EASY": "🟢", "MEDIUM": "🟡", "HARD": "🔴"}.get(tier, "⚪")
-        choices.append(f"{icon} [{tier}] {c['case_id']}: {c['charge']}")
-    return choices
+    gr.HTML("""
+    <div class="verdict-header">
+        <p class="verdict-title">⚖️ VERDICT</p>
+        <p class="verdict-subtitle">Multi-Agent Courtroom AI · Trained with GRPO · OpenEnv Hackathon 2026</p>
+    </div>
+    """)
 
-def get_case_details(selection: str) -> str:
-    if not selection: return ""
-    case_id = selection.split(":")[0].split("]")[-1].strip()
-    case = next((c for c in ALL_CASES if c["case_id"] == case_id), None)
-    if not case: return "Case not found."
-    p_ev = "\n".join(f"  - 🔴 **`{e.evidence_id}`** {e.description}" for e in case["prosecutor_evidence"])
-    d_ev = "\n".join(f"  - 🔵 **`{e.evidence_id}`** {e.description}" for e in case["defense_evidence"])
-    diff_badge = {"easy": "🟢 EASY", "medium": "🟡 MEDIUM", "hard": "🔴 HARD"}.get(case.get("difficulty","medium"), "⚪")
-    return dedent(f"""\
-### 📋 {case.get('title', case['case_id'])}
-**{case.get('category', 'N/A')}** · {diff_badge}
+    with gr.Row():
+        with gr.Column(scale=1):
+            gr.Markdown("### 📋 Case Selection")
 
+            case_options = ["🎲 Random Case", "✏️ Custom Case"] + CASE_TITLES
+            case_dropdown = gr.Dropdown(
+                choices=case_options,
+                value="🎲 Random Case",
+                label="Select a Case",
+                interactive=True
+            )
+
+            custom_case = gr.Textbox(
+                label="Custom Case Description (if selected above)",
+                placeholder="Describe your own case...",
+                lines=3,
+                visible=False
+            )
+
+            run_btn = gr.Button("⚖️ Begin Trial", elem_classes=["run-btn"])
+
+            gr.Markdown("### 📊 Live Stats")
+            with gr.Row():
+                p_score_box = gr.Textbox(label="Prosecutor Score", value="—", interactive=False)
+                d_score_box = gr.Textbox(label="Defense Score", value="—", interactive=False)
+
+            reward_box  = gr.Textbox(label="Avg Rewards", value="—", interactive=False)
+            status_box  = gr.Textbox(label="Status", value="Ready", interactive=False)
+
+            gr.Markdown("### 🏆 Verdict")
+            winner_box    = gr.Textbox(label="Winner", value="—", interactive=False)
+            reasoning_box = gr.Textbox(label="Judge's Reasoning", value="—", lines=4, interactive=False)
+
+            gr.Markdown("""
 ---
+**Model:** [Imaginephoenix/verdict-qwen2.5-3b-grpo](https://huggingface.co/Imaginephoenix/verdict-qwen2.5-3b-grpo)  
+**Environment:** OpenEnv · GRPO via HuggingFace TRL  
+**Hackathon:** Meta × HuggingFace × PyTorch 2026
+            """)
 
-**📜 Case Facts:**
-> {case['case_brief']}
+        with gr.Column(scale=2):
+            gr.Markdown("### 📜 Courtroom Transcript")
+            transcript_box = gr.Textbox(
+                label="",
+                value="Select a case and press 'Begin Trial' to start...",
+                lines=35,
+                interactive=False,
+                elem_classes=["transcript-box"]
+            )
 
----
+    # Show/hide custom case
+    def toggle_custom(choice):
+        return gr.update(visible=(choice == "✏️ Custom Case"))
 
-**🔴 Prosecution Evidence:**
-{p_ev}
+    case_dropdown.change(toggle_custom, inputs=case_dropdown, outputs=custom_case)
 
-**🔵 Defense Evidence:**
-{d_ev}
-""")
-
-def run_simulation(selection, user_role, user_argument):
-    if not selection or not user_argument.strip():
-        return "### ⚠️ Please select a case and write your argument.", ""
-    case_id = selection.split(":")[0].split("]")[-1].strip()
-    case = next((c for c in ALL_CASES if c["case_id"] == case_id), None)
-    if not case: return "Case not found.", ""
-
-    env = VerdictEnvironment(max_rounds=2)
-    env.reset()
-    s = env.state
-    s.case_id, s.case_brief, s.charge = case["case_id"], case["case_brief"], case["charge"]
-    s.prosecutor_evidence = [e.model_copy() for e in case["prosecutor_evidence"]]
-    s.defense_evidence = [e.model_copy() for e in case["defense_evidence"]]
-
-    lines, scores = [], []
-    user_is_pros = user_role == "🔴 Prosecutor"
-    step = 0
-
-    def bot_action(phase):
-        at = {TrialPhase.CLOSING_STATEMENTS: ActionType.CLOSE}.get(phase, ActionType.ARGUE)
-        return VerdictAction(thinking="Counter-argument strategy.", action_type=at,
-            argument="The evidence does not support opposing claims. The documented facts reveal a different conclusion. The timeline contradicts the opposing narrative. The court should weigh these facts carefully.")
-
-    def user_action(phase):
-        at = {TrialPhase.CLOSING_STATEMENTS: ActionType.CLOSE}.get(phase, ActionType.ARGUE)
-        return VerdictAction(thinking="Strategic reasoning.", action_type=at, argument=user_argument)
-
-    while not env.state.is_done and step < 20:
-        role = env.state.current_speaker
-        is_user = (role == AgentRole.PROSECUTOR) == user_is_pros
-        action = user_action(env.state.phase) if is_user else bot_action(env.state.phase)
-        label = f"{'🧑 YOU' if is_user else '🤖 AI'} ({role.value.upper()})"
-        result = env.step(action)
-        step += 1
-        phase_name = env.state.phase.value.replace("_", " ").title()
-        lines.append(f"### Step {step} · {phase_name}\n**{label}** · Action: `{action.action_type.value}`\n\n> {action.argument[:300]}\n\n**Reward:** `{result.reward:.3f}`\n")
-        if result.reward_breakdown:
-            rb = result.reward_breakdown
-            scores.append(f"| {step} | {role.value.title()} | {rb.coherence:.2f} | {rb.evidence_usage:.2f} | {rb.counter_quality:.2f} | {rb.consistency:.2f} | **{rb.weighted_total:.3f}** |")
-
-    s = env.state
-    verdict_text = s.verdict or "No verdict reached."
-    winner = s.winner.value.upper() if s.winner else "DRAW"
-    p_avg = (sum(r.weighted_total for r in s.prosecutor_scores) / len(s.prosecutor_scores)) if s.prosecutor_scores else 0
-    d_avg = (sum(r.weighted_total for r in s.defense_scores) / len(s.defense_scores)) if s.defense_scores else 0
-
-    transcript = "\n---\n\n".join(lines)
-    transcript += f"\n\n---\n\n## ⚖️ VERDICT\n\n**{verdict_text}**\n\n"
-    transcript += f"| | Score |\n|---|---|\n| 🔴 Prosecution Avg | **{p_avg:.3f}** |\n| 🔵 Defense Avg | **{d_avg:.3f}** |\n| Winner | **{winner}** |\n| Total Steps | {s.step_count} |"
-
-    score_table = "| Step | Role | Coherence | Evidence | Counter | Consistency | Total |\n|------|------|-----------|----------|---------|-------------|-------|\n"
-    score_table += "\n".join(scores) if scores else "| — | — | — | — | — | — | — |"
-    return transcript, score_table
-
-# ── UI ────────────────────────────────────────────────────────────────
-
-def build_interface():
-    with gr.Blocks(css=APP_CSS, title="Verdict ⚖️ Courtroom AI", theme=gr.themes.Base(
-        primary_hue=gr.themes.colors.violet,
-        secondary_hue=gr.themes.colors.indigo,
-        neutral_hue=gr.themes.colors.slate,
-        font=gr.themes.GoogleFont("Inter"),
-        font_mono=gr.themes.GoogleFont("JetBrains Mono"),
-    )) as demo:
-
-        gr.HTML(f"""
-        <div class='verdict-hero'>
-            <div class='hero-inner'>
-                <h1>⚖️ Verdict</h1>
-                <p class='tagline'>
-                    Multi-agent adversarial courtroom simulation — argue real legal cases against an AI opponent,
-                    evaluated by a 5-dimension composable rubric. Built on OpenEnv for the
-                    <strong>Meta × HuggingFace × PyTorch Hackathon</strong>.
-                </p>
-                <div class='badge-row'>
-                    <span class='badge'>🧠 OpenEnv v0.2.3</span>
-                    <span class='badge green'>🔥 PyTorch + TRL</span>
-                    <span class='badge amber'>🏆 Hackathon Submission</span>
-                    <span class='badge'>⚡ GRPO Training</span>
-                </div>
-                <div class='stats-row'>
-                    <div class='stat'><div class='stat-num'>{len(ALL_CASES)}</div><div class='stat-label'>Cases</div></div>
-                    <div class='stat'><div class='stat-num'>5</div><div class='stat-label'>Rubric Dims</div></div>
-                    <div class='stat'><div class='stat-num'>3</div><div class='stat-label'>Difficulty Tiers</div></div>
-                    <div class='stat'><div class='stat-num'>6</div><div class='stat-label'>Action Types</div></div>
-                </div>
-            </div>
-        </div>
-        """)
-
-        with gr.Tabs():
-            with gr.Tab("⚔️ Play Trial"):
-                with gr.Row(equal_height=False):
-                    with gr.Column(scale=1, min_width=340):
-                        gr.HTML("<div style='font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:8px'>📋 Case Selection</div>")
-                        case_dd = gr.Dropdown(label="Select Case", choices=format_case_list(),
-                            value=format_case_list()[0] if ALL_CASES else None)
-                        case_info = gr.Markdown(get_case_details(format_case_list()[0]) if ALL_CASES else "",
-                            elem_classes=["glass-card"])
-                    with gr.Column(scale=2):
-                        gr.HTML("<div style='font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin-bottom:8px'>⚔️ Your Move</div>")
-                        role = gr.Radio(label="Choose Your Side", choices=["🔴 Prosecutor", "🔵 Defense"], value="🔴 Prosecutor")
-                        arg = gr.Textbox(label="Courtroom Argument", placeholder="Present your case to the court. Reference evidence by ID for scoring bonus...", lines=5)
-                        btn = gr.Button("⚖️ Run Trial", variant="primary", size="lg", elem_classes=["run-trial-btn"])
-                        gr.HTML("<div style='font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin:20px 0 8px'>📜 Trial Transcript</div>")
-                        transcript = gr.Markdown("*Select a case, pick your side, and present your argument.*", elem_classes=["transcript-box"])
-                        gr.HTML("<div style='font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;margin:16px 0 8px'>📊 Rubric Breakdown</div>")
-                        rubric_out = gr.Markdown("", elem_classes=["score-card"])
-                case_dd.change(get_case_details, case_dd, case_info)
-                btn.click(run_simulation, [case_dd, role, arg], [transcript, rubric_out])
-
-            with gr.Tab("📋 Cases"):
-                gr.HTML(f"""
-                <div style='display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap'>
-                    <div class='about-item' style='flex:1;min-width:120px'><div class='icon'>🟢</div><h4>{len(EASY_CASES)}</h4><p>Easy Cases</p></div>
-                    <div class='about-item' style='flex:1;min-width:120px'><div class='icon'>🟡</div><h4>{len(MEDIUM_CASES)}</h4><p>Medium Cases</p></div>
-                    <div class='about-item' style='flex:1;min-width:120px'><div class='icon'>🔴</div><h4>{len(HARD_CASES)}</h4><p>Hard Cases</p></div>
-                </div>""")
-                bdd = gr.Dropdown(label="Browse All Cases", choices=format_case_list(), value=format_case_list()[0] if ALL_CASES else None)
-                binfo = gr.Markdown(get_case_details(format_case_list()[0]) if ALL_CASES else "", elem_classes=["glass-card"])
-                bdd.change(get_case_details, bdd, binfo)
-
-            with gr.Tab("📊 Rubric"):
-                gr.HTML("""<div class='rubric-section'>
-                <h2 style='color:#c4b5fd;margin-bottom:4px'>⚖️ The 5-Dimension Composable Rubric</h2>
-                <p style='color:#64748b;margin-bottom:20px'>Dense reward signal — prevents reward hacking via structured multi-axis evaluation.</p>
-                <table>
-                <tr><th>Component</th><th>Weight</th><th>Measures</th><th>Anti-Gaming</th></tr>
-                <tr><td>🧠 <strong>Coherence</strong></td><td>30%</td><td>Logical flow, structured sentences, case-fact grounding</td><td>Verbose but hollow → low score</td></tr>
-                <tr><td>📎 <strong>Evidence Usage</strong></td><td>20%</td><td>Strategic citation of evidence cards</td><td>Evidence dumping → near-zero</td></tr>
-                <tr><td>⚔️ <strong>Counter Quality</strong></td><td>20%</td><td>Directly addresses opponent's strongest point</td><td>Talking past opponent → penalty</td></tr>
-                <tr><td>🔄 <strong>Consistency</strong></td><td>15%</td><td>No self-contradiction across turns</td><td>Repetitive loops → heavy penalty</td></tr>
-                <tr><td>🏛️ <strong>Verdict Alignment</strong></td><td>15%</td><td>Terminal bonus — did the judge rule in your favor?</td><td>Binary 0/1 at episode end</td></tr>
-                </table>
-                <div style='margin-top:20px;padding:16px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.15);border-radius:12px'>
-                    <strong style='color:#a78bfa'>Format Penalties:</strong>
-                    <span style='color:#94a3b8'> Missing XML tags → <code style="color:#f87171">-1.0</code> · Over 300 words → <code style="color:#f87171">-1.0</code> · Invalid action → <code style="color:#fbbf24">-0.5</code></span>
-                </div></div>""")
-
-            with gr.Tab("ℹ️ About"):
-                gr.HTML("""
-                <h2 style='color:#e2e8f0;margin-bottom:4px'>Verdict — Multi-Agent Courtroom RL</h2>
-                <p style='color:#64748b;margin-bottom:24px'>Training LLMs to reason, argue, and judge like a lawyer.</p>
-                <div class='about-grid'>
-                    <div class='about-item'><div class='icon'>🏛️</div><h4>Courtroom POMDP</h4><p>Partially observable — each side has hidden evidence cards the opponent can't see.</p></div>
-                    <div class='about-item'><div class='icon'>⚔️</div><h4>Adversarial RL</h4><p>Prosecutor vs Defense in zero-sum argumentation with strategic evidence reveals.</p></div>
-                    <div class='about-item'><div class='icon'>🧠</div><h4>Theory of Mind</h4><p>Agents must reason about opponent's hidden evidence and anticipate counter-arguments.</p></div>
-                    <div class='about-item'><div class='icon'>📊</div><h4>Dense Rewards</h4><p>5-dimension composable rubric prevents reward hacking and sparse signal problems.</p></div>
-                    <div class='about-item'><div class='icon'>🔥</div><h4>GRPO Training</h4><p>Group Relative Policy Optimization via HuggingFace TRL + Unsloth for fast fine-tuning.</p></div>
-                    <div class='about-item'><div class='icon'>🌐</div><h4>OpenEnv v0.2.3</h4><p>Built on the official OpenEnv framework for standardized multi-agent environments.</p></div>
-                </div>
-                <div style='margin-top:24px;padding:20px;background:rgba(15,23,42,0.7);border:1px solid rgba(100,116,139,0.1);border-radius:16px'>
-                    <strong style='color:#a78bfa'>Meta × HuggingFace × PyTorch Hackathon — Bangalore 2026</strong>
-                    <p style='color:#64748b;margin:8px 0 0'>Top 200 of 32,000 teams selected. Building AI that challenges, not agrees.</p>
-                </div>""")
-    return demo
+    # Run episode
+    run_btn.click(
+        fn=run_episode,
+        inputs=[case_dropdown, custom_case],
+        outputs=[
+            transcript_box,
+            winner_box,
+            reasoning_box,
+            status_box,
+            p_score_box,
+            d_score_box,
+            reward_box
+        ]
+    )
 
 if __name__ == "__main__":
-    build_interface().launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(server_name="0.0.0.0", server_port=7860)
