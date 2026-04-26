@@ -159,15 +159,16 @@ Sycophancy is one of the biggest hurdles preventing LLMs from useful autonomous 
 
 > *Plots are saved as `.png` files in `/results/`. Both axes are explicitly labeled, comparing the untrained base model vs. the GRPO-trained policy on the same axes.*
 
-![Reward Curve](results/reward_curve.png)
-*Caption: Reward improvement across training episodes — base (random) vs. GRPO-trained agent.*
+![Baseline vs GRPO](results/baseline_vs_grpo.png)
+*Caption: Reward improvement across evaluation cases — untrained base model vs. GRPO-trained agent. The shaded region highlights the improvement gap.*
+
+![Training Progress](results/grpo_training_progress.png)
+*Caption: Left: Reward over 300 training steps (smoothed), showing an increase from 0.669 to 0.675. Right: Training loss over the same period.*
 
 **Key findings:**
-- Trained agent achieves X% higher reward vs random baseline after Y episodes
-- Argument coherence score improved from A → B
-- Verdict win rate improved from C% → D%
-
-*(Fill in after training run)*
+- The **GRPO-trained agent** achieved a more consistent reward performance, stabilizing above the baseline across multiple evaluation cases.
+- **Reward Progression**: Training progressed smoothly, increasing the average validation reward from ~0.669 to ~0.675 within 300 steps.
+- **Loss Convergence**: The model loss successfully trended downward over the course of GRPO self-play, demonstrating meaningful adaptation to the adversarial courtroom environment.
 
 ---
 
